@@ -1,0 +1,1577 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>スマートお絵かきアプリ</title>
+<style>
+  :root{
+    --bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --panel: rgba(255, 255, 255, 0.95);
+    --panel-dark: rgba(255, 255, 255, 0.9);
+    --ink: #1a202c;
+    --ink-light: #4a5568;
+    --island: #e53e3e;
+    --accent: #4299e1;
+    --accent-hover: #3182ce;
+    --border: rgba(226, 232, 240, 0.8);
+    --hover: rgba(237, 242, 247, 0.8);
+    --active: rgba(190, 227, 248, 0.9);
+    --success: #38a169;
+    --warning: #ed8936;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+  
+  html, body {
+    height: 100%; 
+    margin: 0; 
+    background: var(--bg);
+    color: var(--ink); 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  
+  .app {
+    display: grid; 
+    grid-template-rows: auto 1fr auto; 
+    height: 100%;
+    backdrop-filter: blur(10px);
+  }
+  
+  .toolbar, .statusbar {
+    display: flex; 
+    gap: 1rem; 
+    align-items: center; 
+    padding: 1rem 1.5rem; 
+    background: var(--panel);
+    border-bottom: 1px solid var(--border); 
+    position: relative; 
+    z-index: 2;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+  }
+  
+  .statusbar {
+    border-top: 1px solid var(--border); 
+    border-bottom: none; 
+    justify-content: space-between; 
+    font-size: 0.875rem;
+    background: var(--panel-dark);
+  }
+  
+  .toolbar .group {
+    display: flex; 
+    gap: 0.5rem; 
+    align-items: center; 
+    padding: 0.5rem; 
+    background: var(--hover); 
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+  
+  .toolbar button, .toolbar label, .toolbar input[type="range"] {
+    font: inherit;
+  }
+  
+  .btn {
+    appearance: none; 
+    border: 1px solid var(--border); 
+    background: var(--panel); 
+    padding: 0.75rem 1rem; 
+    border-radius: 10px; 
+    cursor: pointer;
+    font-size: 0.875rem; 
+    font-weight: 600; 
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex; 
+    align-items: center; 
+    gap: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    transition: left 0.5s;
+  }
+  
+  .btn:hover::before {
+    left: 100%;
+  }
+  
+  .btn:hover {
+    background: var(--hover); 
+    border-color: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  }
+  
+  .btn[aria-pressed="true"] {
+    background: var(--active); 
+    border-color: var(--accent); 
+    color: var(--accent);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+    transform: none;
+  }
+  
+  .btn:disabled {
+    opacity: 0.5; 
+    cursor: not-allowed;
+    transform: none;
+  }
+  
+  .btn:active {
+    transform: translateY(0);
+  }
+  
+  .toggle {
+    display: inline-flex; 
+    align-items: center; 
+    gap: 0.5rem;
+  }
+  
+  .spacer {
+    flex: 1;
+  }
+  
+  #canvas {
+    width: 100%; 
+    height: 100%; 
+    display: block; 
+    touch-action: none; 
+    background: #fff;
+    border-radius: 8px;
+    margin: 1rem;
+    box-shadow: var(--shadow-lg);
+  }
+  
+  .kbd {
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace; 
+    background: var(--hover); 
+    padding: 0.25rem 0.5rem; 
+    border-radius: 6px; 
+    font-size: 0.75rem;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+  
+  input[type="file"] {
+    display: none;
+  }
+  
+  .note {
+    font-size: 0.875rem; 
+    color: var(--ink-light);
+  }
+  
+  .stats {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+  }
+  
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: rgba(255,255,255,0.7);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  
+  .stat-value {
+    font-weight: 700;
+    color: var(--accent);
+  }
+  
+  /* Enhanced range slider styling */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+    width: 100px;
+  }
+  
+  input[type="range"]::-webkit-slider-track {
+    background: linear-gradient(to right, #e2e8f0, var(--accent));
+    height: 6px;
+    border-radius: 3px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+  }
+  
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--accent);
+    height: 20px;
+    width: 20px;
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    transition: all 0.2s ease;
+  }
+  
+  input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  
+  input[type="range"]::-moz-range-track {
+    background: linear-gradient(to right, #e2e8f0, var(--accent));
+    height: 6px;
+    border-radius: 3px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+  }
+  
+  input[type="range"]::-moz-range-thumb {
+    background: var(--accent);
+    height: 20px;
+    width: 20px;
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    transition: all 0.2s ease;
+  }
+  
+  /* Enhanced width display */
+  .width-control {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem;
+    background: rgba(255,255,255,0.8);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  
+  .width-label {
+    font-size: 0.875rem; 
+    font-weight: 600; 
+    color: var(--ink);
+    min-width: 3rem;
+  }
+  
+  .width-display {
+    font-size: 0.875rem; 
+    font-weight: 700; 
+    color: var(--accent); 
+    min-width: 3rem;
+    text-align: center;
+    padding: 0.25rem 0.5rem;
+    background: rgba(66, 153, 225, 0.1);
+    border-radius: 6px;
+  }
+  
+  /* Mobile responsive improvements */
+  @media (max-width: 768px) {
+    .toolbar {
+      flex-wrap: wrap;
+      padding: 0.75rem 1rem;
+      gap: 0.75rem;
+    }
+    
+    .toolbar .group {
+      padding: 0.375rem;
+      gap: 0.375rem;
+    }
+    
+    .btn {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8rem;
+    }
+    
+    .btn svg {
+      width: 14px;
+      height: 14px;
+    }
+    
+    #canvas {
+      margin: 0.5rem;
+    }
+    
+    .stats {
+      flex-direction: column;
+      gap: 0.5rem;
+      align-items: flex-start;
+    }
+    
+    .width-control {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    input[type="range"] {
+      width: 80px;
+    }
+  }
+  
+  /* Loading and success animations */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  
+  @keyframes slideIn {
+    from { transform: translateY(-10px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  
+  .toolbar {
+    animation: slideIn 0.3s ease-out;
+  }
+  
+  .btn:disabled {
+    animation: pulse 1.5s infinite;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="toolbar">
+    <div class="group">
+      <button id="tool-pen" class="btn" aria-pressed="true" title="ペンツール (P キー)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 19l7-7 3 3-7 7-3-3z"/>
+          <path d="M18 13l-1.5-1.5L2 22l3.5 3.5L18 13z"/>
+        </svg>
+        ペン
+      </button>
+      <button id="tool-eraser" class="btn" aria-pressed="false" title="消しゴムツール (E キー)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <line x1="9" y1="9" x2="15" y2="15"/>
+          <line x1="15" y1="9" x2="9" y2="15"/>
+        </svg>
+        消しゴム
+      </button>
+    </div>
+    
+    <div class="group width-control">
+      <label class="width-label">線幅</label>
+      <input id="width" type="range" min="1" max="24" step="1" value="20">
+      <span id="width-display" class="width-display">20px</span>
+    </div>
+    
+    <div class="group toggle">
+      <button id="snap" class="btn" aria-pressed="true" title="スナップ機能 (S キー)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 1v6m0 6v6"/>
+          <path d="M1 12h6m6 0h6"/>
+        </svg>
+        スナップ
+      </button>
+    </div>
+    
+    <div class="group toggle">
+      <button id="frame-connect" class="btn" aria-pressed="false" title="フレーム接続 (F キー)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <path d="M9 9l6 6"/>
+          <path d="M15 9l-6 6"/>
+        </svg>
+        フレーム接続
+      </button>
+    </div>
+    
+    <div class="group">
+      <button id="undo" class="btn" title="元に戻す (Ctrl/Cmd+Z)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 7v6h6"/>
+          <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
+        </svg>
+      </button>
+      <button id="redo" class="btn" title="やり直し (Ctrl/Cmd+Shift+Z)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 7v6h-6"/>
+          <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/>
+        </svg>
+      </button>
+      <button id="clear" class="btn" title="全てクリア">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 6h18"/>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+        </svg>
+        クリア
+      </button>
+    </div>
+    
+    <div class="spacer"></div>
+    
+    <div class="group">
+      <button id="export-svg" class="btn" title="SVG形式でエクスポート">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7,10 12,15 17,10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        SVG
+      </button>
+      <button id="export-png" class="btn" title="PNG形式でエクスポート">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7,10 12,15 17,10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        PNG
+      </button>
+      <button id="export-json" class="btn" title="JSON形式でエクスポート">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7,10 12,15 17,10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        JSON
+      </button>
+      <label class="btn" for="import-json" title="JSON形式でインポート">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17,8 12,3 7,8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        読込
+      </label>
+      <input id="import-json" type="file" accept="application/json" />
+    </div>
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+  <div class="statusbar">
+    <div class="stats">
+      <div class="stat-item">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M8 12l2 2 4-4"/>
+        </svg>
+        <span>島：</span>
+        <span id="islands" class="stat-value">0</span>
+      </div>
+      <div class="stat-item">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <path d="M9 9h6v6H9z"/>
+        </svg>
+        <span>最大成分の面積：</span>
+        <span id="maxArea" class="stat-value">0</span>
+        <span>px²</span>
+      </div>
+    </div>
+    <div class="note">
+      ショートカット：
+      <span class="kbd">P</span>ペン 
+      <span class="kbd">E</span>消しゴム 
+      <span class="kbd">S</span>スナップ
+      <span class="kbd">F</span>フレーム接続
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ====== 先にデータモデルを宣言（★順序を前倒し） ======
+  /** 全ストローク */
+  let strokes = []; // {id, points:[{x,y,t,p}], width, bbox}
+  let strokeIdSeq = 1;
+  /** Undo/Redo */
+  const undoStack = [];
+  const redoStack = [];
+  /** キャンバス設定 */
+  let canvasConfig = { width: 800, height: 600, type: 'square' };
+  let frameBounds = { x: 50, y: 50, width: 700, height: 500 };
+
+  // ====== キャンバス初期化 ======
+  const CANVAS = document.getElementById('canvas');
+  const ctx = CANVAS.getContext('2d');
+  const DPR = Math.max(1, window.devicePixelRatio || 1);
+
+  function showSizeSelector() {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6); z-index: 1000;
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(5px);
+      animation: fadeIn 0.3s ease-out;
+    `;
+    
+    const popup = document.createElement('div');
+    popup.style.cssText = `
+      background: white; padding: 2.5rem; border-radius: 1.5rem;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+      text-align: center; max-width: 450px; width: 90%;
+      animation: slideUp 0.3s ease-out;
+    `;
+    
+    popup.innerHTML = `
+      <h2 style="margin: 0 0 2rem 0; color: #1a202c; font-size: 1.5rem; font-weight: 700;">
+        🎨 キャンバスサイズを選択
+      </h2>
+      <div style="display: grid; grid-template-columns: 1fr; gap: 1rem;">
+        <button class="size-btn" data-type="circle" style="padding: 1.5rem; border: 2px solid #e2e8f0; border-radius: 1rem; background: white; cursor: pointer; font-size: 1rem; transition: all 0.2s ease; display: flex; align-items: center; gap: 1rem;">
+          <div style="font-size: 2.5rem;">⭕</div>
+          <div style="text-align: left;">
+            <div style="font-weight: 600; color: #1a202c;">円形キャンバス</div>
+            <div style="font-size: 0.875rem; color: #718096;">丸い形状での描画に最適</div>
+          </div>
+        </button>
+        <button class="size-btn" data-type="square" style="padding: 1.5rem; border: 2px solid #e2e8f0; border-radius: 1rem; background: white; cursor: pointer; font-size: 1rem; transition: all 0.2s ease; display: flex; align-items: center; gap: 1rem;">
+          <div style="font-size: 2.5rem;">⬜</div>
+          <div style="text-align: left;">
+            <div style="font-weight: 600; color: #1a202c;">正方形キャンバス</div>
+            <div style="font-size: 0.875rem; color: #718096;">バランスの取れた標準サイズ</div>
+          </div>
+        </button>
+        <button class="size-btn" data-type="a4" style="padding: 1.5rem; border: 2px solid #e2e8f0; border-radius: 1rem; background: white; cursor: pointer; font-size: 1rem; transition: all 0.2s ease; display: flex; align-items: center; gap: 1rem;">
+          <div style="font-size: 2.5rem;">📄</div>
+          <div style="text-align: left;">
+            <div style="font-weight: 600; color: #1a202c;">A4サイズ（縦長）</div>
+            <div style="font-size: 0.875rem; color: #718096;">文書や縦長の作品に適している</div>
+          </div>
+        </button>
+      </div>
+    `;
+    
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes slideUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
+    
+    const buttons = popup.querySelectorAll('.size-btn');
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const type = btn.dataset.type;
+        setCanvasSize(type);
+        overlay.style.animation = 'fadeIn 0.2s ease-out reverse';
+        setTimeout(() => document.body.removeChild(overlay), 200);
+      });
+      
+      btn.addEventListener('mouseenter', () => {
+        btn.style.borderColor = '#4299e1';
+        btn.style.background = '#f7fafc';
+        btn.style.transform = 'translateY(-2px)';
+        btn.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)';
+      });
+      
+      btn.addEventListener('mouseleave', () => {
+        btn.style.borderColor = '#e2e8f0';
+        btn.style.background = 'white';
+        btn.style.transform = 'translateY(0)';
+        btn.style.boxShadow = 'none';
+      });
+    });
+  }
+  
+  function setCanvasSize(type) {
+    const rect = CANVAS.getBoundingClientRect();
+    const maxSize = Math.min(rect.width, rect.height) * 0.8;
+    const margin = maxSize * 0.1;
+    
+    switch(type) {
+      case 'circle':
+        canvasConfig = { width: maxSize, height: maxSize, type: 'circle' };
+        frameBounds = { x: margin, y: margin, width: maxSize - 2*margin, height: maxSize - 2*margin };
+        break;
+      case 'square':
+        canvasConfig = { width: maxSize, height: maxSize, type: 'square' };
+        frameBounds = { x: margin, y: margin, width: maxSize - 2*margin, height: maxSize - 2*margin };
+        break;
+      case 'a4':
+        const a4Ratio = 1.414; // A4の縦横比
+        const width = maxSize;
+        const height = width / a4Ratio;
+        canvasConfig = { width, height, type: 'a4' };
+        frameBounds = { x: margin, y: margin, width: width - 2*margin, height: height - 2*margin };
+        break;
+    }
+    
+    resizeCanvas();
+  }
+
+  // ====== UI要素 ======
+  const btnPen = document.getElementById('tool-pen');
+  const btnEraser = document.getElementById('tool-eraser');
+  const rngWidth = document.getElementById('width');
+  const widthDisplay = document.getElementById('width-display');
+  const btnSnap = document.getElementById('snap');
+  const btnFrameConnect = document.getElementById('frame-connect');
+  const btnUndo = document.getElementById('undo');
+  const btnRedo = document.getElementById('redo');
+  const btnClear = document.getElementById('clear');
+  const btnExportSVG = document.getElementById('export-svg');
+  const btnExportPNG = document.getElementById('export-png');
+  const btnExportJSON = document.getElementById('export-json');
+  const inpImportJSON = document.getElementById('import-json');
+  const lblIslands = document.getElementById('islands');
+  const lblMaxArea = document.getElementById('maxArea');
+
+  // ====== ツール状態 ======
+  let tool = 'pen'; // 'pen' | 'eraser'
+  function setTool(next){
+    tool = next;
+    btnPen.setAttribute('aria-pressed', next==='pen');
+    btnEraser.setAttribute('aria-pressed', next==='eraser');
+  }
+  btnPen.onclick = ()=> setTool('pen');
+  btnEraser.onclick = ()=> setTool('eraser');
+
+  let snapOn = true;
+  function setSnap(on){
+    snapOn = on;
+    btnSnap.setAttribute('aria-pressed', on);
+    btnSnap.textContent = `スナップ ${on?'ON':'OFF'}`;
+  }
+  btnSnap.onclick = ()=> setSnap(!snapOn);
+
+  let frameConnectOn = false;
+  function setFrameConnect(on){
+    frameConnectOn = on;
+    btnFrameConnect.setAttribute('aria-pressed', on);
+    btnFrameConnect.textContent = `フレーム接続 ${on?'ON':'OFF'}`;
+    
+    // フレーム接続の状態が変わったら、接続と面積を再計算
+    rebuildAll();
+    renderAll();
+  }
+  btnFrameConnect.onclick = ()=> setFrameConnect(!frameConnectOn);
+
+  // ====== しきい値 ======
+  const EPS = 1e-6;
+  const SNAP_EPS = 6; // px
+  const SNAP_EPS2 = SNAP_EPS * SNAP_EPS;
+  const SAMPLE_STEP = 2.5; // px
+  const RDP_EPS = 1.8; // px（簡略化）
+  const DEBOUNCE_MS = 120;
+  const GRID_SIZE = 32; // px（空間グリッド）
+  const VISUAL_CONNECT_THRESHOLD = 2; // 視覚的接続判定の閾値（線の太さの半分程度）
+  const MAX_LINE_WIDTH = 24; // 描画線幅の最大値（rngWidthのmax値と同じ）
+
+  // ====== 空間グリッド ======
+  class SpatialGrid{
+    constructor(cellSize){ this.c=cellSize; this.map=new Map(); }
+    key(ix,iy){ return ix+','+iy; }
+    cellIndex(x,y){ return [Math.floor(x/this.c), Math.floor(y/this.c)]; }
+    aabbCells(minX,minY,maxX,maxY){
+      const a = this.cellIndex(minX,minY), b = this.cellIndex(maxX,maxY);
+      const cells=[];
+      for(let iy=a[1]; iy<=b[1]; iy++){
+        for(let ix=a[0]; ix<=b[0]; ix++){ cells.push([ix,iy]); }
+      }
+      return cells;
+    }
+    clear(){ this.map.clear(); }
+    addSegment(strokeId, ax,ay,bx,by){
+      const minX=Math.min(ax,bx), minY=Math.min(ay,by), maxX=Math.max(ax,bx), maxY=Math.max(ay,by);
+      const cells=this.aabbCells(minX,minY,maxX,maxY);
+      for(const [ix,iy] of cells){
+        const k=this.key(ix,iy);
+        if(!this.map.has(k)) this.map.set(k, []);
+        this.map.get(k).push({type:'seg', strokeId, ax,ay,bx,by});
+      }
+    }
+    addEndpoint(strokeId, x,y){
+      const [ix,iy]=this.cellIndex(x,y);
+      const k=this.key(ix,iy);
+      if(!this.map.has(k)) this.map.set(k, []);
+      this.map.get(k).push({type:'end', strokeId, x,y});
+    }
+    queryAABB(minX,minY,maxX,maxY){
+      const cells=this.aabbCells(minX,minY,maxX,maxY);
+      const out=[];
+      for(const [ix,iy] of cells){
+        const k=this.key(ix,iy);
+        const arr=this.map.get(k);
+        if(arr) out.push(...arr);
+      }
+      return out;
+    }
+  }
+  let grid = new SpatialGrid(GRID_SIZE);
+
+  // ====== Union-Find ======
+  class DSU{
+    constructor(n){ this.p=Array(n).fill(0).map((_,i)=>i); this.sz=Array(n).fill(1); }
+    find(x){ const p=this.p; while(p[x]!==x){ p[x]=p[p[x]]; x=p[x]; } return x; }
+    union(a,b){ a=this.find(a); b=this.find(b); if(a===b) return;
+      if(this.sz[a]<this.sz[b]) [a,b]=[b,a]; this.p[b]=a; this.sz[a]+=this.sz[b];
+    }
+  }
+
+  // ====== 幾何ユーティリティ ======
+  function dist2(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return dx*dx+dy*dy; }
+  function pointToSegDist2(px,py, ax,ay,bx,by){
+    const vx=bx-ax, vy=by-ay;
+    const wx=px-ax, wy=py-ay;
+    const vv= vx*vx+vy*vy || 1e-12;
+    let t = (wx*vx+wy*vy)/vv;
+    t = Math.max(0, Math.min(1, t));
+    const dx=ax + t*vx - px, dy=ay + t*vy - py;
+    return dx*dx+dy*dy;
+  }
+  function bboxOfPoints(points){
+    let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+    for(const p of points){ if(p.x<minX) minX=p.x; if(p.y<minY) minY=p.y; if(p.x>maxX) maxX=p.x; if(p.y>maxY) maxY=p.y; }
+    return {minX, minY, maxX, maxY};
+  }
+  function segIntersect(ax,ay,bx,by, cx,cy,dx,dy){
+    function orient(ax,ay,bx,by,cx,cy){ return (bx-ax)*(cy-ay) - (by-ay)*(cx-ax); }
+    function onSeg(ax,ay,bx,by,px,py){
+      return Math.min(ax,bx)<=px && px<=Math.max(ax,bx) &&
+             Math.min(ay,by)<=py && py<=Math.max(ay,by);
+    }
+    const o1 = Math.sign(orient(ax,ay,bx,by,cx,cy));
+    const o2 = Math.sign(orient(ax,ay,bx,by,dx,dy));
+    const o3 = Math.sign(orient(cx,cy,dx,dy,ax,ay));
+    const o4 = Math.sign(orient(cx,cy,dx,dy,bx,by));
+    if(o1*o2<0 && o3*o4<0) return true;
+    if(o1===0 && onSeg(ax,ay,bx,by,cx,cy)) return true;
+    if(o2===0 && onSeg(ax,ay,bx,by,dx,dy)) return true;
+    if(o3===0 && onSeg(cx,cy,dx,dy,ax,ay)) return true;
+    if(o4===0 && onSeg(cx,cy,dx,dy,bx,by)) return true;
+    return false;
+  }
+  function rdp(points, eps){
+    if(points.length<=2) return points.slice();
+    const eps2 = eps*eps;
+    const keep = Array(points.length).fill(false);
+    keep[0]=keep[points.length-1]=true;
+    function d2PointSeg(p, a, b){ return pointToSegDist2(p.x,p.y, a.x,a.y, b.x,b.y); }
+    function recurse(s,e){
+      let maxD2=-1, idx=-1;
+      for(let i=s+1;i<e;i++){
+        const d2 = d2PointSeg(points[i], points[s], points[e]);
+        if(d2>maxD2){ maxD2=d2; idx=i; }
+      }
+      if(maxD2>eps2){ keep[idx]=true; recurse(s,idx); recurse(idx,e); }
+    }
+    recurse(0, points.length-1);
+    const out=[]; for(let i=0;i<points.length;i++){ if(keep[i]) out.push(points[i]); }
+    return out;
+  }
+
+  // ====== 接続・面積 ======
+  let components = []; // [{id, ids:[strokeId...], areaPx}]
+  let strokeIdToComponent = new Map();
+  let largestComponentId = null;
+
+  function rebuildAll(){
+    grid.clear();
+    const idIndex = new Map();
+    strokes.forEach((s, idx)=> idIndex.set(s.id, idx));
+
+    for(const s of strokes){
+      const pts = s.points;
+      if(pts.length>0){ grid.addEndpoint(s.id, pts[0].x, pts[0].y); }
+      if(pts.length>1){ grid.addEndpoint(s.id, pts[pts.length-1].x, pts[pts.length-1].y); }
+      for(let i=0;i<pts.length-1;i++){
+        const a=pts[i], b=pts[i+1];
+        grid.addSegment(s.id, a.x,a.y, b.x,b.y);
+      }
+    }
+
+    const dsu = new DSU(strokes.length);
+    const idToIdx = new Map(strokes.map((s,i)=>[s.id, i]));
+    
+    // フレーム接続がONの場合、フレームとの接続も判定
+    if(frameConnectOn){
+      // フレームに視覚的に接続されたストロークを特定
+      const frameConnectedStrokes = new Set();
+      for(const s of strokes){
+        if(isVisuallyConnectedToFrame(s)){
+          frameConnectedStrokes.add(s.id);
+        }
+      }
+      
+      // フレームに接続されたストローク同士を接続
+      if(frameConnectedStrokes.size > 0){
+        const frameConnectedIds = Array.from(frameConnectedStrokes);
+        for(let i = 0; i < frameConnectedIds.length - 1; i++){
+          for(let j = i + 1; j < frameConnectedIds.length; j++){
+            const idx1 = idToIdx.get(frameConnectedIds[i]);
+            const idx2 = idToIdx.get(frameConnectedIds[j]);
+            if(idx1 !== undefined && idx2 !== undefined){
+              dsu.union(idx1, idx2);
+            }
+          }
+        }
+      }
+    }
+    
+    for(const s of strokes){
+      const pts = s.points; if(pts.length<2) continue;
+      for(let i=0;i<pts.length-1;i++){
+        const a=pts[i], b=pts[i+1];
+        const minX=Math.min(a.x,b.x), minY=Math.min(a.y,b.y), maxX=Math.max(a.x,b.x), maxY=Math.max(a.y,b.y);
+        const candidates = grid.queryAABB(minX, minY, maxX, maxY);
+        let count=0;
+        for(const c of candidates){
+          if(c.strokeId===s.id) continue;
+          if(++count>200) break;
+          if(c.type==='seg'){
+            // 線分交差判定
+            if(segIntersect(a.x,a.y,b.x,b.y, c.ax,c.ay,c.bx,c.by)){
+              dsu.union(idToIdx.get(s.id), idToIdx.get(c.strokeId));
+            } else {
+              // 視覚的接続判定（線の太さを考慮）
+              const otherStroke = strokes.find(st => st.id === c.strokeId);
+              if(otherStroke) {
+                const visualDistance = getVisualDistance(a.x,a.y,b.x,b.y, c.ax,c.ay,c.bx,c.by, s.width, otherStroke.width);
+                if(visualDistance <= VISUAL_CONNECT_THRESHOLD) {
+                  dsu.union(idToIdx.get(s.id), idToIdx.get(c.strokeId));
+                }
+              }
+            }
+          }else if(c.type==='end'){
+            // 端点近接判定（線の太さを考慮）
+            const otherStroke = strokes.find(st => st.id === c.strokeId);
+            if(otherStroke) {
+              const threshold = Math.max(SNAP_EPS, (s.width + otherStroke.width) / 2);
+              if(dist2(a, {x:c.x,y:c.y})<=threshold*threshold || dist2(b,{x:c.x,y:c.y})<=threshold*threshold){
+                dsu.union(idToIdx.get(s.id), idToIdx.get(c.strokeId));
+              }
+            } else {
+              if(dist2(a, {x:c.x,y:c.y})<=SNAP_EPS2 || dist2(b,{x:c.x,y:c.y})<=SNAP_EPS2){
+                dsu.union(idToIdx.get(s.id), idToIdx.get(c.strokeId));
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const groups = new Map();
+    for(let i=0;i<strokes.length;i++){
+      const r = dsu.find(i);
+      if(!groups.has(r)) groups.set(r, []);
+      groups.get(r).push(i);
+    }
+
+    components = [];
+    strokeIdToComponent.clear();
+    largestComponentId = null;
+
+    const rect = CANVAS.getBoundingClientRect();
+    const W = Math.max(1, Math.floor(rect.width));
+    const H = Math.max(1, Math.floor(rect.height));
+    const scale = 2;
+    const off = document.createElement('canvas');
+    off.width = W*scale; off.height = H*scale;
+    const octx = off.getContext('2d');
+    octx.setTransform(scale,0,0,scale,0,0);
+    octx.clearRect(0,0,W,H);
+    octx.lineJoin='round'; octx.lineCap='round';
+
+    let maxArea=-1, maxKey=null;
+    let compIdx=0;
+    for(const [root, idxs] of groups.entries()){
+      octx.clearRect(0,0,W,H);
+      
+      // フレーム接続がONの場合、フレームも描画して面積計算に含める
+      if(frameConnectOn){
+        // フレーム接続がONの場合、最大成分か島かで色を変える
+        let hasFrameConnection = false;
+        let frameComponentId = null;
+        
+        for (const i of idxs) {
+          const s = strokes[i];
+          if (isVisuallyConnectedToFrame(s)) {
+            hasFrameConnection = true;
+            frameComponentId = compIdx;
+            break;
+          }
+        }
+        
+        if (hasFrameConnection) {
+          if (compIdx === 0) { // 最大成分（面積が最大の成分）
+            octx.strokeStyle = '#000'; // 黒
+          } else {
+            octx.strokeStyle = '#e53935'; // 赤
+          }
+        } else {
+          octx.strokeStyle = '#d1d5db'; // 灰色
+        }
+        
+        octx.lineWidth = MAX_LINE_WIDTH;
+        if (canvasConfig.type === 'circle') {
+          const centerX = frameBounds.x + frameBounds.width / 2;
+          const centerY = frameBounds.y + frameBounds.height / 2;
+          const radius = Math.min(frameBounds.width, frameBounds.height) / 2;
+          octx.beginPath();
+          octx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+          octx.stroke();
+        } else {
+          octx.strokeRect(frameBounds.x, frameBounds.y, frameBounds.width, frameBounds.height);
+        }
+      }
+      
+      for(const i of idxs){
+        const s = strokes[i];
+        octx.strokeStyle = '#000';
+        octx.lineWidth = s.width;
+        octx.lineJoin = 'round';
+        octx.lineCap = 'round';
+        octx.beginPath();
+        const pts = s.points;
+        if(pts.length<2) continue;
+        
+        // 線の描画（閉じた線でも線の太さのみを計算）
+        octx.moveTo(pts[0].x, pts[0].y);
+        for(let j=1;j<pts.length;j++) {
+          octx.lineTo(pts[j].x, pts[j].y);
+        }
+        
+        // 閉じた線の場合でも、線の太さのみを計算するためfillは使用しない
+        octx.stroke();
+      }
+      
+      const img = octx.getImageData(0,0,off.width, off.height);
+      const data = img.data;
+      let count=0;
+      for(let i=3;i<data.length;i+=4){ if(data[i]>0) count++; }
+      const areaPx = count;
+
+      const ids = idxs.map(i=>strokes[i].id);
+      components.push({id: compIdx, ids, areaPx});
+      for(const id of ids) strokeIdToComponent.set(id, compIdx);
+
+      if(areaPx>maxArea){ maxArea=areaPx; maxKey=compIdx; }
+      compIdx++;
+    }
+
+    largestComponentId = maxKey;
+    lblIslands.textContent = Math.max(0, components.length - (components.length?1:0));
+    lblMaxArea.textContent = String(maxArea<0 ? 0 : maxArea);
+  }
+
+  // ====== レンダリング ======
+  function renderAll(){
+    // ★ガード：初期化前に呼ばれた場合に備える
+    if (typeof strokes === 'undefined') return;
+
+    const rect = CANVAS.getBoundingClientRect();
+    ctx.clearRect(0,0,rect.width, rect.height);
+    ctx.save();
+    ctx.lineJoin='round'; ctx.lineCap='round';
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0,0,rect.width, rect.height);
+
+    // フレームを描画（線幅の最大値と同じ太さ）
+    if (frameConnectOn) {
+      // フレーム接続がONの場合、最大成分か島かで色を変える
+      // フレームに接続されたストロークがあるかチェック
+      let hasFrameConnection = false;
+      let frameComponentId = null;
+      
+      for (const s of strokes) {
+        if (isVisuallyConnectedToFrame(s)) {
+          hasFrameConnection = true;
+          frameComponentId = strokeIdToComponent.get(s.id);
+          break;
+        }
+      }
+      
+      if (hasFrameConnection && frameComponentId !== null) {
+        // フレームに接続されたストロークがある場合
+        if (frameComponentId === largestComponentId) {
+          // 最大成分に接続されている場合
+          ctx.strokeStyle = '#000'; // 黒
+        } else {
+          // 島に接続されている場合
+          ctx.strokeStyle = '#e53935'; // 赤
+        }
+      } else {
+        // フレームに接続されたストロークがない場合
+        ctx.strokeStyle = '#d1d5db'; // 灰色
+      }
+    } else {
+      // フレーム接続がOFFの場合
+      ctx.strokeStyle = '#d1d5db'; // 灰色
+    }
+    
+    ctx.lineWidth = MAX_LINE_WIDTH;
+    if (canvasConfig.type === 'circle') {
+      const centerX = frameBounds.x + frameBounds.width / 2;
+      const centerY = frameBounds.y + frameBounds.height / 2;
+      const radius = Math.min(frameBounds.width, frameBounds.height) / 2;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+      ctx.stroke();
+    } else {
+      ctx.strokeRect(frameBounds.x, frameBounds.y, frameBounds.width, frameBounds.height);
+    }
+
+    // ストロークを描画（フレーム内のみ）
+    for(const s of strokes){
+      const compId = strokeIdToComponent.get(s.id);
+      const color = (compId!=null && compId===largestComponentId) ? '#000' : '#e53935';
+      ctx.strokeStyle = color;
+      ctx.lineWidth = s.width;
+      const pts = s.points;
+      if(pts.length<2) continue;
+      
+      // フレーム内のポイントのみを描画
+      const validPoints = [];
+      for(let i = 0; i < pts.length; i++) {
+        if (isPointInFrame(pts[i])) {
+          validPoints.push(pts[i]);
+        }
+      }
+      
+      if(validPoints.length >= 2) {
+        ctx.beginPath();
+        ctx.moveTo(validPoints[0].x, validPoints[0].y);
+        for(let i = 1; i < validPoints.length; i++) {
+          ctx.lineTo(validPoints[i].x, validPoints[i].y);
+        }
+        ctx.stroke();
+      }
+    }
+
+    if(currentStroke){
+      ctx.strokeStyle='rgba(0,0,0,.35)';
+      ctx.lineWidth=currentStroke.width;
+      const pts=currentStroke.points;
+      if(pts.length>=2){
+        // フレーム内のポイントのみを描画
+        const validPoints = [];
+        for(let i = 0; i < pts.length; i++) {
+          if (isPointInFrame(pts[i])) {
+            validPoints.push(pts[i]);
+          }
+        }
+        
+        if(validPoints.length >= 2) {
+          ctx.beginPath();
+          ctx.moveTo(validPoints[0].x, validPoints[0].y);
+          for(let i = 1; i < validPoints.length; i++) {
+            ctx.lineTo(validPoints[i].x, validPoints[i].y);
+          }
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.restore();
+  }
+
+  // フレーム内かどうかを判定
+  function isPointInFrame(point) {
+    if (canvasConfig.type === 'circle') {
+      const centerX = frameBounds.x + frameBounds.width / 2;
+      const centerY = frameBounds.y + frameBounds.height / 2;
+      const radius = Math.min(frameBounds.width, frameBounds.height) / 2;
+      const dx = point.x - centerX;
+      const dy = point.y - centerY;
+      return (dx * dx + dy * dy) <= (radius * radius);
+    } else {
+      return point.x >= frameBounds.x && point.x <= frameBounds.x + frameBounds.width &&
+             point.y >= frameBounds.y && point.y <= frameBounds.y + frameBounds.height;
+    }
+  }
+
+  // フレームに近いかどうかを判定
+  function isPointNearFrame(point) {
+    if (canvasConfig.type === 'circle') {
+      const centerX = frameBounds.x + frameBounds.width / 2;
+      const centerY = frameBounds.y + frameBounds.height / 2;
+      const radius = Math.min(frameBounds.width, frameBounds.height) / 2;
+      const dx = point.x - centerX;
+      const dy = point.y - centerY;
+      const distFromCenter = Math.sqrt(dx*dx + dy*dy);
+      const distFromFrame = Math.abs(distFromCenter - radius);
+      // 線の太さを考慮した視覚的接続判定
+      return distFromFrame <= VISUAL_CONNECT_THRESHOLD;
+    } else {
+      const distFromFrame = getDistanceFromRectFrame(point);
+      // 線の太さを考慮した視覚的接続判定
+      return distFromFrame <= VISUAL_CONNECT_THRESHOLD;
+    }
+  }
+
+  // 四角形フレームからの距離を計算
+  function getDistanceFromRectFrame(point) {
+    const x = point.x;
+    const y = point.y;
+    const fx = frameBounds.x;
+    const fy = frameBounds.y;
+    const fw = frameBounds.width;
+    const fh = frameBounds.height;
+    
+    // フレームの外側の点からフレームまでの最短距離
+    if (x < fx) {
+      if (y < fy) return Math.sqrt((x-fx)*(x-fx) + (y-fy)*(y-fy));
+      if (y > fy + fh) return Math.sqrt((x-fx)*(x-fx) + (y-fy-fh)*(y-fy-fh));
+      return fx - x;
+    }
+    if (x > fx + fw) {
+      if (y < fy) return Math.sqrt((x-fx-fw)*(x-fx-fw) + (y-fy)*(y-fy));
+      if (y > fy + fh) return Math.sqrt((x-fx-fw)*(x-fx-fw) + (y-fy-fh)*(y-fy-fh));
+      return x - (fx + fw);
+    }
+    if (y < fy) return fy - y;
+    if (y > fy + fh) return y - (fy + fh);
+    return 0; // フレーム内
+  }
+
+  // フレームとの視覚的接続判定（線の太さを考慮）
+  function isVisuallyConnectedToFrame(stroke) {
+    if (!frameConnectOn) return false;
+    
+    const pts = stroke.points;
+    for(const pt of pts){
+      if(canvasConfig.type === 'circle') {
+        const centerX = frameBounds.x + frameBounds.width / 2;
+        const centerY = frameBounds.y + frameBounds.height / 2;
+        const radius = Math.min(frameBounds.width, frameBounds.height) / 2;
+        const dx = pt.x - centerX;
+        const dy = pt.y - centerY;
+        const distFromCenter = Math.sqrt(dx*dx + dy*dy);
+        const distFromFrame = Math.abs(distFromCenter - radius);
+        // 線の太さとフレームの太さを考慮
+        const threshold = (stroke.width + MAX_LINE_WIDTH) / 2;
+        if(distFromFrame <= threshold) return true;
+      } else {
+        const distFromFrame = getDistanceFromRectFrame(pt);
+        // 線の太さとフレームの太さを考慮
+        const threshold = (stroke.width + MAX_LINE_WIDTH) / 2;
+        if(distFromFrame <= threshold) return true;
+      }
+    }
+    return false;
+  }
+
+  // 線の太さを考慮した視覚的距離を計算
+  function getVisualDistance(ax,ay,bx,by, cx,cy,dx,dy, width1, width2) {
+    // 2つの線分間の最短距離を計算
+    const minDist = getMinDistanceBetweenSegments(ax,ay,bx,by, cx,cy,dx,dy);
+    
+    // 線の太さを考慮した視覚的距離
+    const visualDist = Math.max(0, minDist - (width1 + width2) / 2);
+    return visualDist;
+  }
+
+  // 2つの線分間の最短距離を計算
+  function getMinDistanceBetweenSegments(ax,ay,bx,by, cx,cy,dx,dy) {
+    // 線分ABと線分CDの最短距離を計算
+    let minDist = Infinity;
+    
+    // 端点同士の距離
+    minDist = Math.min(minDist, Math.sqrt((ax-cx)*(ax-cx) + (ay-cy)*(ay-cy)));
+    minDist = Math.min(minDist, Math.sqrt((ax-dx)*(ax-dx) + (ay-dy)*(ay-dy)));
+    minDist = Math.min(minDist, Math.sqrt((bx-cx)*(bx-cx) + (by-cy)*(by-cy)));
+    minDist = Math.min(minDist, Math.sqrt((bx-dx)*(bx-dx) + (by-dy)*(by-dy)));
+    
+    // 線分AB上の点から線分CDまでの距離
+    const t1 = getClosestPointOnSegment(ax,ay,bx,by, cx,cy);
+    const t2 = getClosestPointOnSegment(ax,ay,bx,by, dx,dy);
+    if(t1 >= 0 && t1 <= 1) {
+      const px = ax + t1 * (bx - ax);
+      const py = ay + t1 * (by - ay);
+      minDist = Math.min(minDist, pointToSegDist2(px,py, cx,cy,dx,dy));
+    }
+    if(t2 >= 0 && t2 <= 1) {
+      const px = ax + t2 * (bx - ax);
+      const py = ay + t2 * (by - ay);
+      minDist = Math.min(minDist, pointToSegDist2(px,py, cx,cy,dx,dy));
+    }
+    
+    // 線分CD上の点から線分ABまでの距離
+    const t3 = getClosestPointOnSegment(cx,cy,dx,dy, ax,ay);
+    const t4 = getClosestPointOnSegment(cx,cy,dx,dy, bx,by);
+    if(t3 >= 0 && t3 <= 1) {
+      const px = cx + t3 * (dx - cx);
+      const py = cy + t3 * (dy - cy);
+      minDist = Math.min(minDist, pointToSegDist2(px,py, ax,ay,bx,by));
+    }
+    if(t4 >= 0 && t4 <= 1) {
+      const px = cx + t4 * (dx - cx);
+      const py = cy + t4 * (dy - cy);
+      minDist = Math.min(minDist, pointToSegDist2(px,py, ax,ay,bx,by));
+    }
+    
+    return Math.sqrt(minDist);
+  }
+
+  // 点Pから線分AB上の最近接点のパラメータtを計算
+  function getClosestPointOnSegment(ax,ay,bx,by, px,py) {
+    const vx = bx - ax;
+    const vy = by - ay;
+    const wx = px - ax;
+    const wy = py - ay;
+    const vv = vx*vx + vy*vy;
+    if(vv === 0) return 0;
+    const t = (wx*vx + wy*vy) / vv;
+    return Math.max(0, Math.min(1, t));
+  }
+
+  // ====== リサイズ（最後に呼ぶ） ======
+  function resizeCanvas(){
+    const rect = CANVAS.getBoundingClientRect();
+    CANVAS.width = Math.floor(rect.width * DPR);
+    CANVAS.height = Math.floor(rect.height * DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    renderAll();
+  }
+  window.addEventListener('resize', resizeCanvas, {passive:true});
+
+  // ====== 入力処理（Pointer Events） ======
+  let isDrawing=false;
+  let lastPt=null;
+  let lastEmitPt=null;
+  let currentStroke=null;
+
+  function canvasPointFromEvent(e){
+    const rect = CANVAS.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  function pointerDown(e){
+    e.preventDefault();
+    CANVAS.setPointerCapture(e.pointerId);
+    const p = canvasPointFromEvent(e);
+    if(tool==='pen'){
+      startStroke(p, e);
+    }else{
+      const hit = pickStroke(p, 12);
+      if(hit){
+        const idx = strokes.findIndex(s=>s.id===hit.id);
+        if(idx>=0){
+          const removed = strokes.splice(idx,1)[0];
+          pushHistory({type:'remove', stroke:removed});
+          rebuildAll(); renderAll();
+        }
+      }
+    }
+  }
+  function pointerMove(e){
+    if(!isDrawing) return;
+    if(tool!=='pen') return;
+    const p = canvasPointFromEvent(e);
+    extendStroke(p, e);
+  }
+  function pointerUp(e){
+    if(tool==='pen'){ endStroke(); }
+    isDrawing=false;
+    CANVAS.releasePointerCapture(e.pointerId);
+  }
+  CANVAS.addEventListener('pointerdown', pointerDown);
+  CANVAS.addEventListener('pointermove', pointerMove);
+  CANVAS.addEventListener('pointerup', pointerUp);
+  CANVAS.addEventListener('pointercancel', pointerUp);
+  CANVAS.addEventListener('pointerleave', (e)=>{ if(isDrawing) pointerUp(e); });
+
+  function startStroke(p, e){
+    // フレーム外の場合は描画開始しない
+    if (!isPointInFrame(p)) return;
+    
+    isDrawing=true;
+    lastPt = p;
+    lastEmitPt = p;
+    const snapped = snapEndpoint(p);
+    currentStroke = {
+      id: 's'+(strokeIdSeq++),
+      width: Number(rngWidth.value),
+      points: [{x:snapped.x, y:snapped.y, t: performance.now(), p: e.pressure ?? 0.5}],
+    };
+    renderAll();
+    debouncedRecompute();
+  }
+
+  function extendStroke(p, e){
+    // フレーム外のポイントは追加しない
+    if (!isPointInFrame(p)) return;
+    
+    const d2 = (p.x-lastEmitPt.x)**2 + (p.y-lastEmitPt.y)**2;
+    if(d2 < SAMPLE_STEP*SAMPLE_STEP) return;
+    const snapped = snapOn ? snapEndpoint(p) : p;
+    currentStroke.points.push({x:snapped.x, y:snapped.y, t:performance.now(), p:e.pressure ?? 0.5});
+    lastEmitPt = p;
+    renderAll();
+    debouncedRecompute();
+  }
+
+  function endStroke(){
+    if(!currentStroke) return;
+    
+    // フレーム内に有効なポイントが2つ以上ある場合のみストロークを保存
+    let validPoints = currentStroke.points.filter(pt => isPointInFrame(pt));
+    if(validPoints.length < 2) {
+      currentStroke = null;
+      isDrawing = false;
+      renderAll();
+      return;
+    }
+    
+    if(validPoints.length>2){
+      validPoints = rdp(validPoints, RDP_EPS);
+    }
+    currentStroke.points = validPoints;
+    currentStroke.bbox = bboxOfPoints(validPoints);
+    strokes.push(currentStroke);
+    pushHistory({type:'add', stroke: currentStroke});
+    currentStroke = null;
+    isDrawing=false;
+    rebuildAll(); renderAll();
+  }
+
+  function pickStroke(pt, radiusPx){
+    // フレーム外のポイントは選択できない
+    if (!isPointInFrame(pt)) return null;
+    
+    const r2 = radiusPx*radiusPx;
+    let best=null, bestD2=r2;
+    for(const s of strokes){
+      const b = s.bbox || bboxOfPoints(s.points);
+      if(pt.x < b.minX - radiusPx || pt.x > b.maxX + radiusPx || pt.y < b.minY - radiusPx || pt.y > b.maxY + radiusPx) continue;
+      const pts = s.points;
+      for(let i=0;i<pts.length-1;i++){
+        const d2 = pointToSegDist2(pt.x, pt.y, pts[i].x, pts[i].y, pts[i+1].x, pts[i+1].y);
+        if(d2<=bestD2){ bestD2=d2; best=s; }
+      }
+    }
+    return best;
+  }
+
+  function snapEndpoint(pt){
+    if(!snapOn || strokes.length===0) return pt;
+    
+    // フレーム外のポイントはスナップしない
+    if (!isPointInFrame(pt)) return pt;
+    
+    const [ix,iy] = grid.cellIndex(pt.x, pt.y);
+    let best = null, bestD2 = SNAP_EPS2;
+    for(let dy=-1; dy<=1; dy++){
+      for(let dx=-1; dx<=1; dx++){
+        const k = grid.key(ix+dx, iy+dy);
+        const arr = grid.map.get(k);
+        if(!arr) continue;
+        for(const c of arr){
+          if(c.type!=='end') continue;
+          const d2 = (c.x-pt.x)*(c.x-pt.x)+(c.y-pt.y)*(c.y-pt.y);
+          if(d2<=bestD2){ bestD2=d2; best = {x:c.x, y:c.y}; }
+        }
+      }
+    }
+    return best ? best : pt;
+  }
+
+  let recomputeTimer = null;
+  function debouncedRecompute(){
+    if(recomputeTimer) clearTimeout(recomputeTimer);
+    recomputeTimer = setTimeout(()=>{
+      if(currentStroke){
+        strokes.push(currentStroke);
+        rebuildAll();
+        strokes.pop();
+      }else{
+        rebuildAll();
+      }
+      renderAll();
+    }, DEBOUNCE_MS);
+  }
+
+  btnExportPNG.onclick = ()=>{
+    const rect = CANVAS.getBoundingClientRect();
+    const off = document.createElement('canvas');
+    off.width = rect.width * DPR; off.height = rect.height * DPR;
+    const octx = off.getContext('2d');
+    octx.setTransform(DPR,0,0,DPR,0,0);
+    octx.fillStyle = '#fff'; octx.fillRect(0,0,rect.width, rect.height);
+    for(const s of strokes){
+      const compId = strokeIdToComponent.get(s.id);
+      const color = (compId!=null && compId===largestComponentId) ? '#000' : '#e53935';
+      octx.strokeStyle = color;
+      octx.lineWidth = s.width; octx.lineJoin='round'; octx.lineCap='round';
+      const pts = s.points; if(pts.length<2) continue;
+      octx.beginPath(); octx.moveTo(pts[0].x, pts[0].y);
+      for(let i=1;i<pts.length;i++) octx.lineTo(pts[i].x, pts[i].y);
+      octx.stroke();
+    }
+    const url = off.toDataURL('image/png');
+    downloadURL(url, 'drawing.png');
+  };
+
+  btnExportSVG.onclick = ()=>{
+    const rect = CANVAS.getBoundingClientRect();
+    const compMap = new Map();
+    for(const s of strokes){
+      const compId = strokeIdToComponent.get(s.id);
+      if(!compMap.has(compId)) compMap.set(compId, []);
+      compMap.get(compId).push(s);
+    }
+    let svg = '';
+    svg += `<?xml version="1.0" encoding="UTF-8"?>\n`;
+    svg += `<svg xmlns="http://www.w3.org/2000/svg" width="${rect.width}" height="${rect.height}" viewBox="0 0 ${rect.width} ${rect.height}">\n`;
+    svg += `<rect width="100%" height="100%" fill="#ffffff"/>\n`;
+    const compIds = Array.from(compMap.keys()).sort((a,b)=> (a===largestComponentId? -1 : b===largestComponentId? 1 : a-b));
+    for(const compId of compIds){
+      const color = (compId!=null && compId===largestComponentId) ? '#000000' : '#e53935';
+      svg += `<g data-component="${compId??-1}" stroke="${color}" fill="none" stroke-linejoin="round" stroke-linecap="round">\n`;
+      const arr = compMap.get(compId);
+      for(const s of arr){
+        const d = pathD(s.points);
+        svg += `<path d="${d}" stroke-width="${s.width}"/>\n`;
+      }
+      svg += `</g>\n`;
+    }
+    svg += `</svg>`;
+    const blob = new Blob([svg], {type:'image/svg+xml'});
+    const url = URL.createObjectURL(blob);
+    downloadURL(url, 'drawing.svg');
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+  };
+
+  btnExportJSON.onclick = ()=>{
+    const payload = {
+      version: 1,
+      params: {SNAP_EPS, SAMPLE_STEP, RDP_EPS, GRID_SIZE},
+      strokes
+    };
+    const blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    downloadURL(url, 'drawing.json');
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+  };
+
+  inpImportJSON.onchange = async (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    try{
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if(!Array.isArray(data.strokes)) throw new Error('bad json');
+      strokes = data.strokes.map(s=>({
+        id: s.id, width: s.width, points: s.points, bbox: s.bbox
+      }));
+      strokeIdSeq = 1 + strokes.reduce((m,s)=> Math.max(m, Number(String(s.id).replace(/[^\d]/g,''))||0), 0);
+      pushHistory({type:'clear', prev:[]});
+      rebuildAll(); renderAll(); updateUndoRedoUI();
+    }catch(err){
+      alert('JSONの読み込みに失敗しました。');
+      console.error(err);
+    }finally{
+      e.target.value='';
+    }
+  };
+
+  function pathD(pts){
+    if(!pts || pts.length===0) return '';
+    let d = `M ${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)}`;
+    for(let i=1;i<pts.length;i++){
+      d += ` L ${pts[i].x.toFixed(2)} ${pts[i].y.toFixed(2)}`;
+    }
+    return d;
+  }
+  function downloadURL(url, filename){
+    const a=document.createElement('a');
+    a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  // ====== Undo/Redo ハンドラ ======
+  function pushHistory(action){
+    undoStack.push(action);
+    redoStack.length = 0;
+    updateUndoRedoUI();
+  }
+  function updateUndoRedoUI(){
+    btnUndo.disabled = undoStack.length===0;
+    btnRedo.disabled = redoStack.length===0;
+  }
+  function undo(){
+    const a = undoStack.pop(); if(!a) return;
+    if(a.type==='add'){
+      const idx = strokes.findIndex(s=>s.id===a.stroke.id);
+      if(idx>=0){ strokes.splice(idx,1); }
+    }else if(a.type==='remove'){
+      strokes.push(a.stroke);
+    }else if(a.type==='clear'){
+      strokes = a.prev;
+    }
+    redoStack.push(a);
+    rebuildAll(); renderAll(); updateUndoRedoUI();
+  }
+  function redo(){
+    const a = redoStack.pop(); if(!a) return;
+    if(a.type==='add'){
+      strokes.push(a.stroke);
+    }else if(a.type==='remove'){
+      const idx = strokes.findIndex(s=>s.id===a.stroke.id);
+      if(idx>=0){ strokes.splice(idx,1); }
+    }else if(a.type==='clear'){
+      strokes = [];
+    }
+    undoStack.push(a);
+    rebuildAll(); renderAll(); updateUndoRedoUI();
+  }
+  btnUndo.onclick = undo;
+  btnRedo.onclick = redo;
+  btnClear.onclick = ()=>{
+    const prev = strokes.slice();
+    strokes = [];
+    pushHistory({type:'clear', prev});
+    rebuildAll(); renderAll();
+  };
+
+  // ====== キーボードショートカット ======
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'p' || e.key === 'P') {
+      e.preventDefault();
+      setTool('pen');
+    } else if (e.key === 'e' || e.key === 'E') {
+      e.preventDefault();
+      setTool('eraser');
+    } else if (e.key === 's' || e.key === 'S') {
+      e.preventDefault();
+      setSnap(!snapOn);
+    } else if (e.key === 'f' || e.key === 'F') {
+      e.preventDefault();
+      setFrameConnect(!frameConnectOn);
+    }
+  });
+
+  function updateWidthDisplay() {
+    const value = rngWidth.value;
+    widthDisplay.textContent = `${value}px`;
+    widthDisplay.style.transform = 'scale(1.1)';
+    setTimeout(() => {
+      widthDisplay.style.transform = 'scale(1)';
+    }, 150);
+  }
+  
+  // 線幅スライダーの値が変わった時に表示を更新
+  rngWidth.addEventListener('input', updateWidthDisplay);
+
+  // ====== 初期化の最終段階 ======
+  resizeCanvas();           // ★strokes 初期化後に実行
+  showSizeSelector();       // サイズ選択ポップアップを表示
+  rebuildAll(); renderAll();
+  updateUndoRedoUI();
+  updateWidthDisplay(); // 線幅表示の更新
+
+})();
+</script>
+</body>
+</html>
